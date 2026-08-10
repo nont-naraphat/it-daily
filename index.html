@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IT Daily</title>
+<style>
+  :root{
+    --bg:#0f1216; --surface:#171b21; --surface2:#1d222a; --line:#262c35;
+    --text:#e7ebf0; --muted:#8b94a3; --faint:#5b636f;
+    --accent:#4f8cff;
+    --overdue:#e5484d; --today:#e08a2b; --soon:#4f8cff; --inprogress:#8b94a3; --backlog:#5b636f; --done:#3aa66b;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f4f6f9; --surface:#ffffff; --surface2:#f0f3f7; --line:#e2e7ee;
+      --text:#131720; --muted:#5c6675; --faint:#98a1b0; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;
+    -webkit-font-smoothing:antialiased;padding:0 20px 60px}
+  .wrap{max-width:1080px;margin:0 auto}
+
+  header{display:flex;align-items:center;gap:16px;padding:22px 0 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .brand{font-family:var(--mono);font-weight:600;letter-spacing:.22em;font-size:14px}
+  .brand b{color:var(--accent)}
+  .date{font-family:var(--mono);font-size:13px;color:var(--muted)}
+  .spacer{flex:1}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--faint);display:inline-block;margin-right:7px;vertical-align:middle}
+  .dot.on{background:var(--done)} .dot.off{background:var(--overdue)}
+  .statustxt{font-size:12px;color:var(--muted)}
+  button{font-family:var(--sans);font-size:13px;color:var(--text);background:var(--surface2);
+    border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button:disabled{opacity:.5;cursor:default}
+  .btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
+  input,select{font-family:var(--sans);font-size:13px;color:var(--text);background:var(--bg);
+    border:1px solid var(--line);border-radius:7px;padding:7px 9px}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+
+  .brief{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:12px;padding:20px 22px;margin:22px 0}
+  .brief .stamp{font-family:var(--mono);font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.14em}
+  .brief h1{font-size:19px;font-weight:600;margin:8px 0 6px;line-height:1.35}
+  .brief p{margin:0;color:var(--muted);font-size:14px}
+  .risks{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .risk{font-size:12px;color:var(--overdue);background:color-mix(in srgb,var(--overdue) 12%,transparent);
+    border:1px solid color-mix(in srgb,var(--overdue) 30%,transparent);border-radius:6px;padding:3px 9px}
+
+  .section-row{display:flex;align-items:center;margin:26px 0 12px}
+  .section-label{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  .section-row button{margin-left:auto;padding:6px 12px}
+  .focus{display:grid;gap:10px}
+  .focus-item{display:flex;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:13px 16px}
+  .focus-num{font-family:var(--mono);font-size:15px;color:var(--accent);min-width:22px}
+  .focus-body .t{font-weight:500}
+  .focus-body .w{font-size:13px;color:var(--muted)}
+  .tag{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface2);
+    border:1px solid var(--line);border-radius:5px;padding:1px 7px;margin-left:8px}
+
+  .create{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:16px;
+    display:grid;gap:10px;grid-template-columns:1fr 1fr;align-items:center}
+  .create .full{grid-column:1/-1}
+  .create label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  .create input,.create select{width:100%}
+  .create .actions{grid-column:1/-1;display:flex;align-items:center;gap:12px}
+  .create .chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+  .create .err{grid-column:1/-1;color:var(--overdue);font-size:12px;min-height:0}
+
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .col{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .col-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .col-head .name{font-size:13px;font-weight:600}
+  .col-head .count{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:auto}
+  .bar{width:6px;height:16px;border-radius:3px}
+  .card{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:8px;background:var(--surface2)}
+  .card:last-child{margin-bottom:0}
+  .card .ct{font-size:13.5px;font-weight:500;line-height:1.35}
+  .card .cm{display:flex;align-items:center;gap:8px;margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .prog{height:3px;border-radius:2px;background:var(--line);margin-top:7px;overflow:hidden}
+  .prog>i{display:block;height:100%;background:var(--accent)}
+  .cact{display:flex;align-items:center;gap:8px;margin-top:9px}
+  .cact select{padding:3px 6px;font-size:11px}
+  .cact button{padding:3px 9px;font-size:11px}
+  .empty{font-size:12px;color:var(--faint);padding:6px 0}
+
+  .gate{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:28px;margin:26px 0;text-align:center}
+  .gate h2{font-size:17px;margin:0 0 8px}
+  .gate p{color:var(--muted);font-size:14px;margin:0 auto 18px;max-width:440px}
+  .code{font-family:var(--mono);font-size:26px;letter-spacing:.28em;background:var(--surface2);
+    border:1px dashed var(--accent);border-radius:10px;padding:14px 20px;display:inline-block;margin:6px 0 4px}
+  a{color:var(--accent)}
+  @media (max-width:560px){ .create{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="brand">IT<b>·</b>DAILY</span>
+    <span class="date" id="date"></span>
+    <span class="spacer"></span>
+    <span class="statustxt"><span class="dot" id="dot"></span><span id="statustxt">กำลังเชื่อมต่อ…</span></span>
+    <button class="btn-accent" id="sync" onclick="sync()">Sync now</button>
+  </header>
+  <div id="root"></div>
+</div>
+
+<script>
+const $ = (s)=>document.querySelector(s);
+const STATUS = {
+  overdue:{name:"เลยกำหนด",color:"var(--overdue)"},
+  today:{name:"วันนี้",color:"var(--today)"},
+  soon:{name:"ใกล้ถึง",color:"var(--soon)"},
+  inprogress:{name:"กำลังทำ",color:"var(--inprogress)"},
+  backlog:{name:"รอเริ่ม",color:"var(--backlog)"},
+};
+const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let PLANS = [];
+
+function fmtDate(){
+  $("#date").textContent = new Date().toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+}
+
+async function boot(){
+  fmtDate();
+  const st = await (await fetch("/api/status")).json();
+  if(!st.config_ok){ $("#statustxt").textContent="ยังไม่ได้ตั้งค่า .env"; $("#dot").className="dot off"; return; }
+  if(!st.connected){ $("#dot").className="dot off"; $("#statustxt").textContent="ยังไม่ได้เชื่อม Microsoft"; renderGate(); return; }
+  $("#dot").className="dot on"; $("#statustxt").textContent = st.schedule;
+  loadData();
+}
+
+async function loadData(){
+  $("#root").innerHTML = '<p style="color:var(--muted);margin-top:30px">กำลังโหลดงาน…</p>';
+  const d = await (await fetch("/api/data")).json();
+  if(!d.connected){ renderGate(); return; }
+  render(d);
+}
+
+async function sync(){
+  const b=$("#sync"); b.disabled=true; b.textContent="กำลัง sync…";
+  try{ const d=await (await fetch("/api/refresh",{method:"POST"})).json();
+    if(d.connected) render(d); else renderGate(); }
+  finally{ b.disabled=false; b.textContent="Sync now"; }
+}
+
+function render(d){
+  const ai = d.ai||{}, tasks = d.tasks||[];
+  const gen = d.generated_at ? new Date(d.generated_at).toLocaleString("th-TH") : "";
+  let html = "";
+
+  html += `<div class="brief">
+    <div class="stamp">อัปเดตล่าสุด · ${esc(gen)}</div>
+    <h1>${esc(ai.headline || "สรุปงานวันนี้")}</h1>
+    <p>${esc(ai.summary || (tasks.length? "" : "ไม่มีงานค้างในวันนี้"))}</p>
+    ${(ai.risks&&ai.risks.length)?`<div class="risks">${ai.risks.map(r=>`<span class="risk">${esc(r)}</span>`).join("")}</div>`:""}
+  </div>`;
+
+  if(ai.today_focus&&ai.today_focus.length){
+    html += `<div class="section-row"><span class="section-label">โฟกัสวันนี้</span></div><div class="focus">`;
+    ai.today_focus.forEach((f,i)=>{
+      html += `<div class="focus-item"><div class="focus-num">${i+1}</div><div class="focus-body">
+        <div class="t">${esc(f.title)}${f.plan?`<span class="tag">${esc(f.plan)}</span>`:""}</div>
+        <div class="w">${esc(f.why||"")}</div></div></div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<div class="section-row"><span class="section-label">งานทั้งหมด</span>
+    <button onclick="toggleCreate()">+ สร้างงานใหม่</button></div>`;
+  html += `<div id="createbox"></div>`;
+
+  html += `<div class="board">`;
+  for(const key of ["overdue","today","soon","inprogress","backlog"]){
+    const list = tasks.filter(t=>t.status===key), s = STATUS[key];
+    html += `<div class="col"><div class="col-head">
+      <span class="bar" style="background:${s.color}"></span>
+      <span class="name">${s.name}</span><span class="count">${list.length}</span></div>`;
+    if(!list.length) html += `<div class="empty">—</div>`;
+    list.forEach(t=>{
+      const opts=[0,25,50,75,100].map(v=>`<option value="${v}" ${v===t.percent?"selected":""}>${v}%</option>`).join("");
+      html += `<div class="card"><div class="ct">${esc(t.title)}</div>
+        <div class="cm">${t.plan?esc(t.plan):"—"}${t.due?` · due ${esc(t.due)}`:""}</div>
+        ${t.percent>0?`<div class="prog"><i style="width:${t.percent}%"></i></div>`:""}
+        <div class="cact">
+          <select onchange="setPercent('${t.id}',this.value)">${opts}</select>
+          <button onclick="setPercent('${t.id}',100)">เสร็จ</button>
+        </div></div>`;
+    });
+    html += `</div>`;
+  }
+  html += `</div>`;
+  $("#root").innerHTML = html;
+}
+
+async function toggleCreate(){
+  const box=$("#createbox");
+  if(box.innerHTML){ box.innerHTML=""; return; }
+  if(!PLANS.length){
+    const r=await (await fetch("/api/plans")).json();
+    PLANS = Array.isArray(r)? r : [];
+  }
+  box.innerHTML = `<div class="create">
+    <div class="full"><label>ชื่องาน</label><input id="c-title" placeholder="เช่น ตรวจ EDR policy Phase 1"></div>
+    <div><label>Plan</label><select id="c-plan" onchange="loadBuckets()">
+      <option value="">— เลือก plan —</option>
+      ${PLANS.map(p=>`<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("")}</select></div>
+    <div><label>Bucket</label><select id="c-bucket"><option value="">(default)</option></select></div>
+    <div><label>กำหนดส่ง</label><input type="date" id="c-due"></div>
+    <div class="chk"><input type="checkbox" id="c-me" checked> <label style="margin:0">assign ให้ฉัน</label></div>
+    <div class="err" id="c-err"></div>
+    <div class="actions"><button class="btn-accent" id="c-btn" onclick="createTask()">สร้างงาน</button>
+      <button onclick="toggleCreate()">ยกเลิก</button></div>
+  </div>`;
+}
+
+async function loadBuckets(){
+  const pid=$("#c-plan").value, sel=$("#c-bucket");
+  sel.innerHTML='<option value="">(default)</option>';
+  if(!pid) return;
+  const r=await (await fetch("/api/buckets?plan_id="+encodeURIComponent(pid))).json();
+  if(Array.isArray(r)) r.forEach(b=>{ const o=document.createElement("option"); o.value=b.id; o.textContent=b.name; sel.appendChild(o); });
+}
+
+async function createTask(){
+  const err=$("#c-err"), btn=$("#c-btn");
+  const body={ title:$("#c-title").value.trim(), plan_id:$("#c-plan").value,
+    bucket_id:$("#c-bucket").value, due:$("#c-due").value, assign_me:$("#c-me").checked };
+  if(!body.title || !body.plan_id){ err.textContent="ใส่ชื่องานและเลือก plan ก่อน"; return; }
+  err.textContent=""; btn.disabled=true; btn.textContent="กำลังสร้าง…";
+  const res=await fetch("/api/tasks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const j=await res.json();
+  btn.disabled=false; btn.textContent="สร้างงาน";
+  if(!res.ok){ err.textContent=j.error||"สร้างไม่สำเร็จ"; return; }
+  await sync();
+}
+
+async function setPercent(id,val){
+  const res=await fetch("/api/tasks/"+encodeURIComponent(id),{method:"PATCH",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({percent:Number(val)})});
+  const j=await res.json();
+  if(!res.ok){ alert(j.error||"อัปเดตไม่สำเร็จ"); return; }
+  await sync();
+}
+
+function renderGate(){
+  $("#root").innerHTML = `<div class="gate">
+    <h2>เชื่อมต่อ Microsoft Planner</h2>
+    <p>กด Connect แล้วเอารหัสไปกรอกที่หน้า Microsoft เพื่อเชื่อมบัญชีครั้งเดียว จากนั้นระบบจะดึงงานและอัปเดตให้เองทุกเช้า</p>
+    <button class="btn-accent" onclick="connect()">Connect</button>
+    <div id="gateout" style="margin-top:14px"></div>
+  </div>`;
+}
+
+async function connect(){
+  const out=$("#gateout"); out.innerHTML="กำลังขอรหัส…";
+  const r = await (await fetch("/auth/start",{method:"POST"})).json();
+  if(r.error){ out.innerHTML=`<span style="color:var(--overdue)">${esc(r.error)}</span>`; return; }
+  out.innerHTML = `<div class="code">${esc(r.user_code)}</div>
+    <div style="color:var(--muted);font-size:13px">กรอกรหัสนี้ที่ <a href="${esc(r.verification_uri)}" target="_blank">${esc(r.verification_uri)}</a></div>`;
+  poll();
+}
+
+function poll(){
+  const iv=setInterval(async()=>{
+    const st=await (await fetch("/api/status")).json();
+    if(st.connected){ clearInterval(iv); $("#dot").className="dot on"; $("#statustxt").textContent=st.schedule; loadData(); }
+  },4000);
+}
+
+boot();
+</script>
+</body>
+</html>

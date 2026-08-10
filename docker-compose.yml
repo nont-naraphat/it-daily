@@ -1,0 +1,21 @@
+services:
+  it-daily:
+    build: .
+    container_name: it-daily
+    ports:
+      - "8094:8094"
+    environment:
+      - TENANT_ID=${TENANT_ID}
+      - CLIENT_ID=${CLIENT_ID}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-5}
+      - TZ=${TZ:-Asia/Bangkok}
+      - BRIEF_HOUR=${BRIEF_HOUR:-7}
+      - BRIEF_MINUTE=${BRIEF_MINUTE:-30}
+      - DUE_SOON_DAYS=${DUE_SOON_DAYS:-3}
+    volumes:
+      - itdaily-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  itdaily-data:
