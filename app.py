@@ -171,10 +171,19 @@ def bucket_name(token, bid):
 
 def list_plans(token):
     data = graph_get(token, f"{GRAPH}/me/planner/plans")
-    return [
-        {"id": p.get("id"), "title": p.get("title", ""), "editable": plan_editable(p.get("id"))}
-        for p in data.get("value", [])
-    ]
+    plans = [{"id": p.get("id"), "title": p.get("title", "")} for p in data.get("value", []) if p.get("id")]
+    # fallback: บาง tenant คืน /me/planner/plans ว่าง → ดึง planId จากงานจริงแทน
+    if not plans:
+        seen = {}
+        for t in fetch_my_tasks(token):
+            pid = t.get("planId")
+            if pid and pid not in seen:
+                seen[pid] = plan_name(token, pid) or "(plan)"
+        plans = [{"id": pid, "title": title} for pid, title in seen.items()]
+    for p in plans:
+        p["editable"] = plan_editable(p["id"])
+    plans.sort(key=lambda x: x["title"])
+    return plans
 
 
 def list_buckets(token, plan_id):
@@ -519,6 +528,21 @@ async def api_create_task(req: Request):
         return {"ok": True, "id": task.get("id")}
     except ReadOnly:
         return JSONResponse({"error": "plan นี้เป็นอ่านอย่างเดียว (ไม่อยู่ใน whitelist)"}, status_code=403)
+    except requests.HTTPError as e:
+        return JSONResponse({"error": _graph_err(e)}, status_code=400)
+
+
+@app.post("/api/task/{task_id}/move")
+async def api_move_task(task_id: str, req: Request):
+    token, err = _require_token()
+    if err:
+        return err
+    b = await req.json()
+    try:
+        save_task(token, task_id, {"bucket_id": b.get("bucket_id")})
+        return {"ok": True}
+    except ReadOnly:
+        return JSONResponse({"error": "plan นี้เป็นอ่านอย่างเดียว"}, status_code=403)
     except requests.HTTPError as e:
         return JSONResponse({"error": _graph_err(e)}, status_code=400)
 
