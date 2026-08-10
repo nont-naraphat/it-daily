@@ -170,20 +170,36 @@ def bucket_name(token, bid):
 
 
 def list_plans(token):
-    data = graph_get(token, f"{GRAPH}/me/planner/plans")
-    plans = [{"id": p.get("id"), "title": p.get("title", "")} for p in data.get("value", []) if p.get("id")]
-    # fallback: บาง tenant คืน /me/planner/plans ว่าง → ดึง planId จากงานจริงแทน
-    if not plans:
-        seen = {}
-        for t in fetch_my_tasks(token):
-            pid = t.get("planId")
-            if pid and pid not in seen:
-                seen[pid] = plan_name(token, pid) or "(plan)"
-        plans = [{"id": pid, "title": title} for pid, title in seen.items()]
-    for p in plans:
-        p["editable"] = plan_editable(p["id"])
-    plans.sort(key=lambda x: x["title"])
-    return plans
+    plans = {}
+    # 1) plan ที่พินไว้ใน My Tasks
+    try:
+        for p in graph_get(token, f"{GRAPH}/me/planner/plans").get("value", []):
+            if p.get("id"):
+                plans[p["id"]] = p.get("title", "")
+    except Exception:
+        pass
+    # 2) plan จากทุก group ที่เป็นสมาชิก (เหมือน Planner แสดง)
+    try:
+        for o in graph_get(token, f"{GRAPH}/me/memberOf?$select=id,displayName").get("value", []):
+            if o.get("@odata.type") != "#microsoft.graph.group":
+                continue
+            try:
+                for p in graph_get(token, f"{GRAPH}/groups/{o['id']}/planner/plans").get("value", []):
+                    if p.get("id") and p["id"] not in plans:
+                        plans[p["id"]] = p.get("title", "") or o.get("displayName", "")
+            except Exception:
+                pass
+    except Exception:
+        pass
+    # 3) fallback: plan จากงานจริงของฉัน
+    for t in fetch_my_tasks(token):
+        pid = t.get("planId")
+        if pid and pid not in plans:
+            plans[pid] = plan_name(token, pid) or "(plan)"
+    out = [{"id": pid, "title": title or "(plan)", "editable": plan_editable(pid)}
+           for pid, title in plans.items()]
+    out.sort(key=lambda x: x["title"])
+    return out
 
 
 def list_buckets(token, plan_id):
