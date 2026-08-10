@@ -217,11 +217,22 @@ def build_task_view(token):
                 )
             except Exception:
                 due = None
+        completed = None
+        if t.get("completedDateTime"):
+            try:
+                completed = (
+                    datetime.datetime.fromisoformat(t["completedDateTime"].replace("Z", "+00:00"))
+                    .astimezone(ZoneInfo(TZ))
+                    .date()
+                )
+            except Exception:
+                completed = None
         item = {
             "id": t.get("id"),
             "title": t.get("title", ""),
             "percent": pct,
             "due": due.isoformat() if due else None,
+            "completed": completed.isoformat() if completed else None,
             "plan": plan_name(token, t.get("planId")),
             "bucket": bucket_name(token, t.get("bucketId")),
             "priority": t.get("priority", 5),
