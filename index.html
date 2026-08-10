@@ -6,22 +6,22 @@
 <title>IT Daily</title>
 <style>
   :root{
-    --bg:#0b0e14; --surface:#141a24; --surface2:#1a212d; --raise:#212a38; --line:#232c3a; --line2:#313c4e;
-    --text:#e9eef5; --muted:#98a3b4; --faint:#5f6b7d;
-    --accent:#5b8dff; --accent2:#7aa2ff; --accent-soft:rgba(91,141,255,.14);
-    --overdue:#f2564d; --today:#f0972f; --soon:#5b8dff; --inprogress:#8a94a6; --backlog:#5f6b7d; --done:#33b17a;
-    --urgent:#f2564d; --important:#f0972f; --medium:#5b8dff; --low:#6b7688;
-    --c1:#5b8dff; --c2:#2dc7a0; --c3:#f0972f; --c4:#a98bff; --c5:#f2699e; --c6:#4fc06a;
+    --bg:#0c0f17; --surface:#151b27; --surface2:#1b2331; --raise:#232d3e; --line:#26303f; --line2:#33404f;
+    --text:#eef2f8; --muted:#94a1b6; --faint:#5f6c80;
+    --accent:#6c5cf0; --accent2:#8b7cff; --accent-soft:rgba(108,92,240,.16);
+    --overdue:#ff5a5f; --today:#ff9f43; --soon:#4dabf7; --inprogress:#a78bfa; --backlog:#7c8698; --done:#20c997;
+    --urgent:#ff5a5f; --important:#ff9f43; --medium:#4dabf7; --low:#7c8698;
+    --c1:#6c5cf0; --c2:#20c997; --c3:#ff9f43; --c4:#4dabf7; --c5:#f368a3; --c6:#51cf66;
     --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
     --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;
     --r:12px; --r-sm:8px;
     --ease:cubic-bezier(.22,.61,.36,1); --ease2:cubic-bezier(.34,1.4,.64,1);
-    --shadow:0 6px 24px -8px rgba(0,0,0,.5), 0 2px 6px -2px rgba(0,0,0,.35);
+    --shadow:0 10px 30px -12px rgba(0,0,0,.6), 0 3px 8px -3px rgba(0,0,0,.4);
   }
   @media (prefers-color-scheme: light){
-    :root{ --bg:#f3f5f9; --surface:#ffffff; --surface2:#f8fafc; --raise:#eef2f7; --line:#e5e9f0; --line2:#d6dce6;
-      --text:#111826; --muted:#5a6577; --faint:#93a0b2; --accent-soft:rgba(91,141,255,.1);
-      --shadow:0 8px 26px -12px rgba(30,50,90,.22), 0 2px 6px -2px rgba(30,50,90,.1); }
+    :root{ --bg:#f4f6fb; --surface:#ffffff; --surface2:#f7f9fd; --raise:#eef1f8; --line:#e6eaf2; --line2:#d7dde9;
+      --text:#0f1626; --muted:#59647a; --faint:#93a0b6; --accent-soft:rgba(108,92,240,.1);
+      --shadow:0 12px 30px -14px rgba(40,50,90,.24), 0 3px 8px -3px rgba(40,50,90,.12); }
   }
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%}
@@ -65,6 +65,8 @@
   .spin{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px}
   input,select,textarea{font-family:var(--sans);font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--line2);border-radius:var(--r-sm);padding:9px 11px;transition:.15s}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  select option{background:var(--surface);color:var(--text)}
+  .plansel select{color:var(--text)}
   textarea{resize:vertical;line-height:1.5}
 
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:18px 0 22px}
@@ -200,7 +202,7 @@
 
 <script>
 const $=(s)=>document.querySelector(s);
-const ORDER=["overdue","today","soon","inprogress","backlog","done"];
+const ORDER=["overdue","today","backlog","soon","inprogress","done"];
 const META={
   overdue:{name:"เลยกำหนด",c:"var(--overdue)"}, today:{name:"วันนี้",c:"var(--today)"},
   soon:{name:"ใกล้ถึง",c:"var(--soon)"}, inprogress:{name:"กำลังทำ",c:"var(--inprogress)"},
@@ -211,7 +213,7 @@ const COLS=["--c1","--c2","--c3","--c4","--c5","--c6"];
 const DONE_LIMIT=8;
 const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const today0=new Date(new Date().toDateString());
-let TAB="daily", PLANS=[], BOARD=null, EDIT=null, DONE_EXPANDED=false, DRAG=null;
+let TAB="daily", PLANS=[], BOARD=null, EDIT=null, DONE_EXPANDED=false, DRAG=null, DAILY=null;
 
 addEventListener("scroll",()=>{ $("#hdr").classList.toggle("stuck",scrollY>8); });
 
@@ -249,7 +251,7 @@ function stagger(sel){ document.querySelectorAll(sel).forEach((el,i)=>el.style.a
 async function loadDaily(){
   $("#root").innerHTML='<div class="load">กำลังโหลดงาน…</div>';
   const d=await (await fetch("/api/data")).json();
-  if(!d.connected){ renderGate(); return; } renderDaily(d);
+  if(!d.connected){ renderGate(); return; } DAILY=d; renderDaily(d);
 }
 function overdue(due){ return due && new Date(due) < today0; }
 function dailyCard(t){
@@ -289,7 +291,7 @@ function renderDaily(d){
     if(!list.length) h+=`<div class="empty">—</div>`;
     else{ const exp=DONE_EXPANDED&&k==="done"; const show=(k==="done"&&!exp)?list.slice(0,DONE_LIMIT):list;
       h+=`<div class="stack">${show.map(dailyCard).join("")}`;
-      if(k==="done"&&list.length>DONE_LIMIT) h+=`<div class="more" onclick="DONE_EXPANDED=!DONE_EXPANDED;loadDaily()">${exp?"▲ ย่อ":"+ อีก "+(list.length-DONE_LIMIT)+" งาน"}</div>`;
+      if(k==="done"&&list.length>DONE_LIMIT) h+=`<div class="more" onclick="DONE_EXPANDED=!DONE_EXPANDED;renderDaily(DAILY)">${exp?"▲ ย่อ":"+ อีก "+(list.length-DONE_LIMIT)+" งาน"}</div>`;
       h+=`</div>`; }
     h+=`</div>`;
   });
