@@ -225,7 +225,7 @@ const META={
   soon:{name:"ใกล้ถึง",c:"var(--soon)"}, inprogress:{name:"กำลังทำ",c:"var(--inprogress)"},
   backlog:{name:"รอเริ่ม",c:"var(--backlog)"}, done:{name:"เสร็จแล้ว",c:"var(--done)"},
 };
-const PRIO={urgent:"Urgent",important:"High",medium:"Normal",low:"Low"};
+const PRIO={urgent:"Urgent",important:"Important",medium:"Medium",low:"Low"};
 const COLS=["--c1","--c2","--c3","--c4","--c5","--c6"];
 const DONE_LIMIT=8;
 const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -422,7 +422,7 @@ function newTask(bucketId){ if(!BOARD) return;
 function drawTask(t){
   const ed=EDIT.editable, dis=ed?"":"disabled";
   const bopts=(BOARD?BOARD.buckets:[]).map(bk=>`<option value="${esc(bk.id)}" ${bk.id===(t.bucketId||"")?"selected":""}>${esc(bk.name)}</option>`).join("");
-  const popts=Object.keys(PRIO).map(k=>`<option value="${k}" ${k===(t.priority||"medium")?"selected":""}>${PRIO[k]}</option>`).join("");
+  const popts=Object.keys(PRIO).map(k=>`<option value="${k}" ${k===(t.prio||t.priority||"medium")?"selected":""}>${PRIO[k]}</option>`).join("");
   const perc=[0,25,50,75,100].map(v=>`<option value="${v}" ${v===(t.percent||0)?"selected":""}>${v}%</option>`).join("");
   let h=`<div class="dw-head"><textarea id="d-title" ${dis} placeholder="ชื่องาน">${esc(t.title)}</textarea><button class="dw-close" onclick="closeDrawer()">&times;</button></div>`;
   h+=`<div class="dw-label">รายละเอียด</div><textarea class="dw-notes" id="d-notes" ${dis} placeholder="โน้ต / คำอธิบาย">${esc(t.notes||"")}</textarea>`;
