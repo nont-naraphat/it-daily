@@ -13,9 +13,10 @@ services:
       - BRIEF_HOUR=${BRIEF_HOUR:-7}
       - BRIEF_MINUTE=${BRIEF_MINUTE:-30}
       - DUE_SOON_DAYS=${DUE_SOON_DAYS:-3}
+      - ALLOWED_PLAN_IDS=${ALLOWED_PLAN_IDS:-}
+      - QUICK_CHANNELS=${QUICK_CHANNELS:-}
     volumes:
       - itdaily-data:/app/data
     restart: unless-stopped
-
 volumes:
   itdaily-data:
