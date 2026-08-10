@@ -33,6 +33,9 @@ DUE_SOON_DAYS = int(os.getenv("DUE_SOON_DAYS", "3"))
 # guardrail: plan ที่แก้ได้ (คั่นด้วย comma). ว่าง = แก้ได้ทุก plan
 ALLOWED_PLAN_IDS = set(x.strip() for x in os.getenv("ALLOWED_PLAN_IDS", "").split(",") if x.strip())
 
+# ทางลัดสร้างงานด่วน: คั่นด้วย ; รูปแบบ  "PlanName"  หรือ  "Label = PlanName > BucketName"
+QUICK_CHANNELS = os.getenv("QUICK_CHANNELS", "")
+
 DATA_DIR = os.getenv("DATA_DIR", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "itdaily.db")
@@ -519,6 +522,54 @@ def api_plans():
         return err
     try:
         return list_plans(token)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+def resolve_quick(token):
+    if not QUICK_CHANNELS.strip():
+        return []
+    plans = list_plans(token)
+    by_title = {p["title"].strip().lower(): p for p in plans}
+    out = []
+    for entry in QUICK_CHANNELS.split(";"):
+        entry = entry.strip()
+        if not entry:
+            continue
+        label = None
+        if "=" in entry:
+            label, entry = entry.split("=", 1)
+            label, entry = label.strip(), entry.strip()
+        if ">" in entry:
+            pname, bname = [x.strip() for x in entry.split(">", 1)]
+        else:
+            pname, bname = entry, None
+        p = by_title.get(pname.lower())
+        if not p:
+            continue
+        bid, bres = "", ""
+        if bname:
+            try:
+                for b in list_buckets(token, p["id"]):
+                    if b["name"].strip().lower() == bname.lower():
+                        bid, bres = b["id"], b["name"]
+                        break
+            except Exception:
+                pass
+        out.append({"label": label or bres or bname or p["title"],
+                    "plan_id": p["id"], "plan": p["title"],
+                    "bucket_id": bid, "bucket": bres or (bname or ""),
+                    "editable": p["editable"]})
+    return out
+
+
+@app.get("/api/quick")
+def api_quick():
+    token, err = _require_token()
+    if err:
+        return err
+    try:
+        return resolve_quick(token)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
