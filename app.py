@@ -140,6 +140,18 @@ def graph_get(token, url):
     return r.json()
 
 
+def get_me(token):
+    try:
+        me = graph_get(token, f"{GRAPH}/me?$select=displayName,givenName,mail,userPrincipalName")
+        return {
+            "name": me.get("givenName") or me.get("displayName") or "",
+            "displayName": me.get("displayName") or "",
+            "mail": me.get("mail") or me.get("userPrincipalName") or "",
+        }
+    except Exception:
+        return {"name": "", "displayName": "", "mail": ""}
+
+
 def get_me_id(token):
     global _me_id
     if not _me_id:
@@ -472,10 +484,13 @@ def index():
 
 @app.get("/api/status")
 def status():
-    return {"connected": get_token() is not None,
+    token = get_token()
+    me = get_me(token) if token else {"name": "", "displayName": "", "mail": ""}
+    return {"connected": token is not None,
             "config_ok": bool(TENANT_ID and CLIENT_ID),
             "ai_enabled": bool(ANTHROPIC_API_KEY),
             "locked": bool(ALLOWED_PLAN_IDS),
+            "user": me,
             "schedule": f"{BRIEF_HOUR:02d}:{BRIEF_MINUTE:02d} (Mon-Fri, {TZ})"}
 
 
