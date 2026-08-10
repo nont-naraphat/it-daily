@@ -97,6 +97,10 @@
   .cact{display:flex;align-items:center;gap:7px;margin-top:10px}
   .cact select{padding:4px 7px;font-size:11px;border-radius:6px}
   .cact button{padding:4px 11px;font-size:11px;border-radius:6px}
+  .card[draggable="true"]{cursor:grab}
+  .card[draggable="true"]:active{cursor:grabbing}
+  .dropcol{border-radius:var(--r);transition:.12s;padding:2px}
+  .dropcol.over{background:var(--accent-soft);outline:1px dashed var(--accent);outline-offset:-1px}
   .card.done{opacity:.62;border-left-color:var(--done);cursor:pointer}
   .card.done .ct{text-decoration:line-through;text-decoration-color:var(--faint)}
   .card.done .ct::before{content:"\2713  ";color:var(--done);font-weight:600;text-decoration:none}
@@ -172,7 +176,7 @@ const META={
 const PRIO={urgent:"Urgent",important:"Important",medium:"Medium",low:"Low"};
 const DONE_LIMIT=8;
 const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let TAB="daily", PLANS=[], BOARD=null, EDIT=null;
+let TAB="daily", PLANS=[], BOARD=null, EDIT=null, DONE_EXPANDED=false, DRAG=null;
 
 function fmtDate(){ return new Date().toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long",year:"numeric"}); }
 
@@ -180,7 +184,7 @@ async function boot(){
   const st=await (await fetch("/api/status")).json();
   if(!st.config_ok){ $("#dot").className="dot off"; $("#statustxt").textContent="ยังไม่ได้ตั้งค่า .env"; $("#root").innerHTML=""; return; }
   if(!st.connected){ $("#dot").className="dot off"; $("#statustxt").textContent="ยังไม่ได้เชื่อม Microsoft"; renderGate(); return; }
-  $("#dot").className="dot on"; $("#statustxt").textContent=st.schedule;
+  $("#dot").className="dot on"; $("#statustxt").textContent="เชื่อมแล้ว"; $("#statustxt").title="AI สรุปอัตโนมัติ "+st.schedule;
   switchTab(TAB);
 }
 function switchTab(t){
@@ -234,8 +238,10 @@ function renderDaily(d){
     let list=by(k); if(k==="done") list=list.slice().sort((a,b)=>(b.completed||"").localeCompare(a.completed||""));
     h+=`<div><div class="col-head"><span class="cdot" style="background:${META[k].c}"></span><span class="name">${META[k].name}</span><span class="count">${list.length}</span></div>`;
     if(!list.length) h+=`<div class="empty">—</div>`;
-    else{ const show=k==="done"?list.slice(0,DONE_LIMIT):list; h+=`<div class="stack">${show.map(dailyCard).join("")}`;
-      if(k==="done"&&list.length>DONE_LIMIT) h+=`<div class="more">+ อีก ${list.length-DONE_LIMIT} งาน</div>`; h+=`</div>`; }
+    else{ const exp=DONE_EXPANDED&&k==="done"; const show=(k==="done"&&!exp)?list.slice(0,DONE_LIMIT):list;
+      h+=`<div class="stack">${show.map(dailyCard).join("")}`;
+      if(k==="done"&&list.length>DONE_LIMIT) h+=`<div class="more" style="cursor:pointer" onclick="DONE_EXPANDED=!DONE_EXPANDED;loadDaily()">${exp?"▲ ย่อ":"+ อีก "+(list.length-DONE_LIMIT)+" งาน"}</div>`;
+      h+=`</div>`; }
     h+=`</div>`;
   }
   h+=`</div>`; $("#root").innerHTML=h;
@@ -255,10 +261,22 @@ async function changePlan(pid){ const b=await (await fetch("/api/board?plan_id="
 function boardCard(t){
   const flag=`<span class="flag" style="background:var(--${t.prio})" title="${PRIO[t.prio]}"></span>`;
   const cls=t.status==="done"?"card done":"card";
-  return `<div class="${cls}" style="--c:${t.status==="done"?"var(--done)":META[t.status].c}" onclick="openTask('${t.id}')">
+  const drag=BOARD.editable?`draggable="true" ondragstart="dragStart(event,'${t.id}')" ondragend="dragEnd()"`:"";
+  return `<div class="${cls}" ${drag} style="--c:${t.status==="done"?"var(--done)":META[t.status].c}" onclick="openTask('${t.id}')">
     <div class="ct">${esc(t.title)}</div>
     <div class="cm">${flag}${t.due?`<span class="due">${esc(t.due)}</span>`:""}${t.percent>0&&t.percent<100?` · ${t.percent}%`:""}</div>
     ${t.percent>0&&t.percent<100?`<div class="prog"><i style="width:${t.percent}%"></i></div>`:""}</div>`;
+}
+function dragStart(e,id){ DRAG=id; e.dataTransfer.effectAllowed="move"; setTimeout(()=>{ e.target.style.opacity="0.4"; },0); }
+function dragEnd(){ DRAG=null; document.querySelectorAll(".card").forEach(c=>c.style.opacity=""); document.querySelectorAll(".dropcol").forEach(c=>c.classList.remove("over")); }
+function dragOver(e){ e.preventDefault(); e.currentTarget.classList.add("over"); }
+function dragLeave(e){ e.currentTarget.classList.remove("over"); }
+async function dropTask(e,bucketId){
+  e.preventDefault(); e.currentTarget.classList.remove("over");
+  if(!DRAG) return; const id=DRAG;
+  const t=BOARD.tasks.find(x=>x.id===id); if(t&&(t.bucketId||"")===bucketId) return;
+  const res=await fetch("/api/task/"+encodeURIComponent(id)+"/move",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bucket_id:bucketId})});
+  const j=await res.json(); if(!res.ok){ alert(j.error||"ย้ายไม่สำเร็จ"); return; } loadBoard();
 }
 function renderBoard(){
   const b=BOARD; let h="";
@@ -271,7 +289,8 @@ function renderBoard(){
   h+=`<div class="board">`;
   for(const bk of buckets){
     const list=b.tasks.filter(t=>(t.bucketId||"")===bk.id);
-    h+=`<div><div class="col-head"><span class="cdot" style="background:var(--accent)"></span><span class="name">${esc(bk.name)}</span><span class="count">${list.length}</span></div>`;
+    const dz=b.editable?`class="dropcol" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropTask(event,'${bk.id}')"`:"";
+    h+=`<div ${dz}><div class="col-head"><span class="cdot" style="background:var(--accent)"></span><span class="name">${esc(bk.name)}</span><span class="count">${list.length}</span></div>`;
     h+=`<div class="stack">${list.map(boardCard).join("")||'<div class="empty">—</div>'}`;
     if(b.editable) h+=`<button class="addbtn" onclick="newTask('${bk.id}')">+ เพิ่มงาน</button>`;
     h+=`</div></div>`;
@@ -376,7 +395,7 @@ async function connect(){
   if(r.error){ out.innerHTML=`<span style="color:var(--overdue)">${esc(r.error)}</span>`; return; }
   out.innerHTML=`<div class="code">${esc(r.user_code)}</div><div style="color:var(--muted);font-size:13px">กรอกรหัสนี้ที่ <a href="${esc(r.verification_uri)}" target="_blank">${esc(r.verification_uri)}</a></div>`;
   const iv=setInterval(async()=>{ const st=await (await fetch("/api/status")).json();
-    if(st.connected){ clearInterval(iv); $("#dot").className="dot on"; $("#statustxt").textContent=st.schedule; switchTab(TAB); } },4000);
+    if(st.connected){ clearInterval(iv); $("#dot").className="dot on"; $("#statustxt").textContent="เชื่อมแล้ว"; switchTab(TAB); } },4000);
 }
 
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeDrawer(); });
