@@ -54,13 +54,14 @@ def plan_editable(pid):
 
 
 def prio_label(p):
+    # Microsoft Planner: 0-1=urgent, 2-4=important, 5-7=medium, 8-10=low
     if p is None:
         return "medium"
     if p <= 1:
         return "urgent"
     if p <= 4:
         return "important"
-    if p <= 6:
+    if p <= 7:
         return "medium"
     return "low"
 
