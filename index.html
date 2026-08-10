@@ -54,6 +54,11 @@
   .dot.on{background:var(--done);box-shadow:0 0 0 3px color-mix(in srgb,var(--done) 22%,transparent);animation:pulse 2.4s infinite}
   .dot.off{background:var(--overdue);box-shadow:0 0 0 3px color-mix(in srgb,var(--overdue) 22%,transparent)}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--done) 22%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--done) 8%,transparent)}}
+  .hello{font-size:13px;color:var(--muted);display:none}
+  .hello b{color:var(--text);font-weight:500}
+  @media (max-width:820px){.hello{display:none!important}}
+  .status.auto{color:var(--done);border-color:color-mix(in srgb,var(--done) 40%,var(--line))}
+  .status.auto .dot{background:var(--done)}
   button{font-family:var(--sans);font-size:13px;color:var(--text);background:var(--surface2);border:1px solid var(--line2);border-radius:var(--r-sm);padding:9px 15px;cursor:pointer;transition:.18s var(--ease)}
   button:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
   button:active{transform:translateY(0) scale(.98)}
@@ -156,7 +161,7 @@
   .dw-close{font-size:22px;color:var(--muted);cursor:pointer;background:none;border:none;padding:2px 6px;line-height:1;transition:.15s}
   .dw-close:hover{color:var(--text);transform:rotate(90deg)}
   .dw-label{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.12em;margin:18px 0 8px}
-  .dw-notes{width:100%;min-height:70px;font-size:13px}
+  .dw-notes{width:100%;min-height:130px;font-size:13.5px;line-height:1.6;padding:12px 13px}
   .cl-item{display:flex;align-items:center;gap:10px;padding:6px 0;animation:fadeIn .2s}
   .cl-item .chk{font-size:19px;cursor:pointer;flex:none;line-height:1;background:none;border:none;padding:0;color:var(--muted);transition:.15s}
   .cl-item .chk:hover{transform:scale(1.15)}
@@ -191,7 +196,8 @@
       <span class="tab" id="tab-board" onclick="switchTab('board')">บอร์ด</span>
     </div>
     <span class="spacer"></span>
-    <span class="status"><span class="dot" id="dot"></span><span id="statustxt">กำลังเชื่อมต่อ…</span></span>
+    <span class="hello" id="hello"></span>
+    <span class="status" id="autobtn" onclick="toggleAuto()" title="อัปเดตอัตโนมัติทุก 30 วินาที" style="cursor:pointer"><span class="dot" id="dot"></span><span id="statustxt">กำลังเชื่อมต่อ…</span></span>
     <button class="btn-accent" id="sync" onclick="sync()">Sync now</button>
   </header>
   <div id="root"><div class="load">กำลังโหลด…</div></div>
@@ -213,7 +219,19 @@ const COLS=["--c1","--c2","--c3","--c4","--c5","--c6"];
 const DONE_LIMIT=8;
 const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const today0=new Date(new Date().toDateString());
-let TAB="daily", PLANS=[], BOARD=null, EDIT=null, DONE_EXPANDED=false, DRAG=null, DAILY=null;
+let TAB="daily", PLANS=[], BOARD=null, EDIT=null, DONE_EXPANDED=false, DRAG=null, DAILY=null, AUTO=true, AUTO_IV=null;
+
+function greet(){ const hr=new Date().getHours(); return hr<12?"สวัสดีตอนเช้า":hr<17?"สวัสดีตอนบ่าย":"สวัสดีตอนเย็น"; }
+function toggleAuto(){ AUTO=!AUTO; startAuto(); $("#autobtn").classList.toggle("auto",AUTO);
+  $("#statustxt").textContent=AUTO?"อัปเดตอัตโนมัติ":"เชื่อมแล้ว"; }
+function startAuto(){ if(AUTO_IV) clearInterval(AUTO_IV); if(!AUTO) return;
+  AUTO_IV=setInterval(()=>{ if(EDIT) return; autoRefresh(); },30000); }
+async function autoRefresh(){
+  try{
+    if(TAB==="daily"){ const d=await (await fetch("/api/data")).json(); if(d.connected){ DAILY=d; renderDaily(d); } }
+    else if(BOARD){ const b=await (await fetch("/api/board?plan_id="+encodeURIComponent(BOARD.plan_id))).json(); if(!b.error){ BOARD=b; renderBoard(); } }
+  }catch(e){}
+}
 
 addEventListener("scroll",()=>{ $("#hdr").classList.toggle("stuck",scrollY>8); });
 
@@ -221,7 +239,10 @@ async function boot(){
   const st=await (await fetch("/api/status")).json();
   if(!st.config_ok){ $("#dot").className="dot off"; $("#statustxt").textContent="ยังไม่ได้ตั้งค่า .env"; $("#root").innerHTML=""; return; }
   if(!st.connected){ $("#dot").className="dot off"; $("#statustxt").textContent="ยังไม่ได้เชื่อม"; renderGate(); return; }
-  $("#dot").className="dot on"; $("#statustxt").textContent="เชื่อมแล้ว"; $("#statustxt").title="AI สรุปอัตโนมัติ "+st.schedule;
+  $("#dot").className="dot on"; $("#statustxt").textContent=AUTO?"อัปเดตอัตโนมัติ":"เชื่อมแล้ว"; $("#autobtn").classList.toggle("auto",AUTO); $("#statustxt").title="AI สรุปอัตโนมัติ "+st.schedule;
+  const u=st.user||{};
+  if(u.name||u.mail){ const el=$("#hello"); el.style.display="inline"; el.innerHTML=`${greet()}, <b>${esc(u.name||u.displayName)}</b>${u.mail?` · <span style="color:var(--faint)">${esc(u.mail)}</span>`:""}`; }
+  startAuto();
   switchTab(TAB);
 }
 function switchTab(t){
