@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import requests
 import msal
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # ----------------------------------------------------------------------------
@@ -483,6 +483,21 @@ def _require_token():
 def index():
     with open(os.path.join(HERE, "index.html"), encoding="utf-8") as f:
         return f.read()
+
+
+@app.get("/api/photo")
+def api_photo():
+    token = get_token()
+    if not token:
+        return Response(status_code=404)
+    try:
+        r = requests.get(f"{GRAPH}/me/photo/$value",
+                         headers={"Authorization": f"Bearer {token}"}, timeout=20)
+        if r.status_code == 200:
+            return Response(content=r.content, media_type=r.headers.get("Content-Type", "image/jpeg"))
+    except Exception:
+        pass
+    return Response(status_code=404)
 
 
 @app.get("/api/status")
